@@ -1,0 +1,23 @@
+# Maven build output
+target/
+*.war
+*.jar
+
+# IDE files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.eclipse
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Environment / secrets — NEVER commit these
+*.env
+.env
+secrets.properties
