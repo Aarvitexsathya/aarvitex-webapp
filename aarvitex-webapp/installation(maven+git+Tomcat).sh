@@ -41,7 +41,25 @@ source /etc/profile
 # Verify
 mvn -version
 
+#Tomcat install
+cd /opt
+sudo wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.115/bin/apache-tomcat-9.0.115.tar.gz
+sudo tar -xvzf apache-tomcat-9.0.115.tar.gz
+sudo mv apache-tomcat-9.0.115 tomcat9
+
+# Start Tomcat
+sudo /opt/tomcat9/bin/startup.sh
+
 # ── Step 4: Install Git ─────────────────────────────────────────────
 sudo yum install git -y
 cd /opt
 git clone https://github.com/Aarvitexsathya/aarvitex-webapp.git
+
+#Buld the project
+
+cd /opt/aarvitex-webapp/aarvitex-webapp
+mvn clean package
+
+#Deploy the war
+# Copy the built WAR to Tomcat's webapps directory
+sudo cp /opt/aarvitex-webapp/aarvitex-webapp/target/AarvitexWebApp.war /opt/tomcat9/webapps/
