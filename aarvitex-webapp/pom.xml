@@ -97,4 +97,15 @@
     </plugins>
   </build>
 
+      <!-- Nexus plugin (Change the server Ip where the nexus installed)-->
+  <distributionManagement>
+    <snapshotRepository>
+      <id>nexus-snapshots</id>
+      <url>http://98.92.126.143:8081/repository/maven-snapshots/</url>
+    </snapshotRepository>
+    <repository>
+      <id>nexus-releases</id>
+      <url>http://98.92.126.143:8081/repository/maven-releases/</url>
+    </repository>
+  </distributionManagement>
 </project>
