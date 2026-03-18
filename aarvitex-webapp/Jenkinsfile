@@ -26,7 +26,7 @@ pipeline {
         jdk   'Java11'   // The name you give JDK 11 in Jenkins Global Tools
     }
 
-    // ── ENVIRONMENT VARIABLES ──
+    // ── ENVIRONMENT VARIABLES
     environment {
         APP_NAME    = 'AarvitexWebApp'
         TOMCAT_DIR  = '/opt/tomcat9/webapps'
