@@ -93,7 +93,7 @@ pipeline {
         }
     }
  
-    // ═══ STAGE 6: POST-BUILD NOTIFICATIONS ═══
+    // ═══ STAGE 6: POST-BUILD NOTIFICATIONS
     post {
         success {
             echo 'Pipeline completed successfully!'
