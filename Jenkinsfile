@@ -1,111 +1,106 @@
-// ─────────────────────────────────────────────────────────────────
-//  Jenkinsfile — Aarvitex WebApp CI/CD Pipeline
-//  Used in: Session 3 (Jenkins)
-//
-//  Pipeline Stages:
-//    1. Checkout  — Pull latest code from GitHub
-//    2. Build     — Maven clean package (produces AarvitexWebApp.war)
-//    3. Test      — Maven runs JUnit tests
-//    4. Sonar     — SonarQube static code analysis + Quality Gate
-//    5. Deploy    — Copy WAR to Tomcat (on Jenkins agent)
-//
-//  Prerequisites:
-//    - Jenkins has Maven configured (Global Tool Configuration)
-//    - Jenkins has SonarQube server configured (Manage Jenkins → Configure)
-//    - SONAR_TOKEN stored as a Jenkins Credential (Secret Text)
-//    - Tomcat is running on the Jenkins server at /opt/tomcat9
-// ─────────────────────────────────────────────────────────────────
-
 pipeline {
-
     agent any
-
-    // ── TOOLS (must be configured in Jenkins → Global Tool Configuration) ──
+ 
     tools {
-        maven 'Maven3'   // The name you give Maven in Jenkins Global Tools
-        jdk   'Java11'   // The name you give JDK 11 in Jenkins Global Tools
+        maven 'Maven-3'
     }
-
-    // ── ENVIRONMENT VARIABLES
+ 
     environment {
-        APP_NAME    = 'AarvitexWebApp'
-        TOMCAT_DIR  = '/opt/tomcat9/webapps'
-        SONAR_URL   = 'http://localhost:9000'   // Update to your SonarQube server IP
+        // ── Replace <Server1-Private-IP> with your actual Server 1 IP ──
+        SONAR_URL      = 'http://35.170.50.55:9000'
+        NEXUS_URL      = 'http://35.170.50.55:8081'
+        NEXUS_REPO     = 'maven-snapshots'
+        TOMCAT_URL     = 'http://35.170.50.55:8080'
+        ARTIFACT_ID    = 'aarvitex-webapp'
+        GROUP_ID       = 'com.aarvitex'
+        VERSION        = '1.0-SNAPSHOT'
+        PACKAGING      = 'war'
     }
-
+ 
     stages {
-
-        // ── STAGE 1: CHECKOUT ──
-        stage('Checkout') {
+ 
+        // ═══ STAGE 1: GIT CHECKOUT ═══
+        stage('Git Checkout') {
             steps {
-                echo '=== Stage 1: Checking out source code from GitHub ==='
-                checkout scm
-                sh 'ls -la'
+                git branch: 'master',
+                    credentialsId: 'git_creds',
+                    url: 'https://github.com/Aarvitexsathya/aarvitex-webapp.git'
             }
         }
-
-        // ── STAGE 2: BUILD ──
-        stage('Build') {
+ 
+        // ═══ STAGE 2: MAVEN BUILD ═══
+        stage('Maven Build') {
             steps {
-                echo '=== Stage 2: Building with Maven ==='
-                sh 'mvn clean package -DskipTests'
-                echo 'Build artifact:'
-                sh 'ls -lh target/*.war'
-            }
-        }
-
-        // ── STAGE 3: TEST ──
-        stage('Test') {
-            steps {
-                echo '=== Stage 3: Running Unit Tests ==='
-                sh 'mvn test'
+                sh 'mvn clean package -DskipTests=false'
             }
             post {
-                always {
-                    // Publish JUnit test results in Jenkins UI
-                    junit 'target/surefire-reports/*.xml'
+                success {
+                    archiveArtifacts artifacts: 'target/*.war'
                 }
             }
         }
-
-        // ── STAGE 4: SONARQUBE ANALYSIS ──
+ 
+        // ═══ STAGE 3: SONARQUBE ANALYSIS ═══
         stage('SonarQube Analysis') {
             steps {
-                echo '=== Stage 4: Running SonarQube Analysis ==='
-                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    sh """
-                        mvn sonar:sonar \
-                          -Dsonar.host.url=${SONAR_URL} \
-                          -Dsonar.login=${SONAR_TOKEN} \
-                          -Dsonar.projectKey=aarvitex-webapp
-                    """
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        mvn sonar:sonar \\
+                          -Dsonar.projectKey=aarvitex-webapp \\
+                          -Dsonar.projectName='Aarvitex WebApp' \\
+                          -Dsonar.host.url=${SONAR_URL}
+                    '''
                 }
             }
         }
-
-        // ── STAGE 5: DEPLOY TO TOMCAT ──
-        stage('Deploy') {
+ 
+        // ═══ STAGE 4: UPLOAD TO NEXUS ═══
+        stage('Upload to Nexus') {
             steps {
-                echo '=== Stage 5: Deploying WAR to Tomcat ==='
-                sh "sudo cp target/${APP_NAME}.war ${TOMCAT_DIR}/"
-                echo "Deployed: ${APP_NAME}.war → ${TOMCAT_DIR}/"
-                echo "Access at: http://<SERVER-IP>:8080/${APP_NAME}"
+                nexusArtifactUploader(
+                    nexusVersion: 'nexus3',
+                    protocol: 'http',
+                    nexusUrl: '172.31.43.64:8081',
+                    groupId: "${GROUP_ID}",
+                    version: "${VERSION}",
+                    repository: "${NEXUS_REPO}",
+                    credentialsId: 'nexus_creds',
+                    artifacts: [
+                        [
+                            artifactId: "${ARTIFACT_ID}",
+                            classifier: '',
+                            file: 'target/AarvitexWebApp.war',
+                            type: "${PACKAGING}"
+                        ]
+                    ]
+                )
+            }
+        }
+ 
+        // ═══ STAGE 5: DEPLOY TO TOMCAT ═══
+        stage('Deploy to Tomcat') {
+            steps {
+                deploy adapters: [
+                    tomcat9(
+                        credentialsId: 'tomcat_creds',
+                        path: '',
+                        url: "${TOMCAT_URL}"
+                    )
+                ],
+                contextPath: '/AarvitexWebApp',
+                war: 'target/AarvitexWebApp.war'
             }
         }
     }
-
-    // ── POST BUILD ACTIONS ──
+ 
+    // ═══ STAGE 6: POST-BUILD NOTIFICATIONS ═══
     post {
         success {
-            echo '✅ Pipeline completed successfully!'
-            echo "App running at: http://<SERVER-IP>:8080/${APP_NAME}"
+            echo 'Pipeline completed successfully!'
+            echo "App live at: ${TOMCAT_URL}/AarvitexWebApp"
         }
         failure {
-            echo '❌ Pipeline failed. Check the stage logs above.'
-        }
-        always {
-            echo '=== Pipeline finished. Archiving artifacts. ==='
-            archiveArtifacts artifacts: 'target/*.war', fingerprint: true
+            echo 'Pipeline failed! Check console output.'
         }
     }
 }
