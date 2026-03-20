@@ -39,3 +39,5 @@ echo '>>> Jenkins installed — port 8080'
 echo '>>> [Step 4/4] Installing Git...'
 dnf install -y git
 git --version
+cd /opt
+git clone https://github.com/Aarvitexsathya/aarvitex-webapp.git
