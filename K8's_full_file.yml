@@ -1,0 +1,169 @@
+# aarvitex-webapp/
+# ├── Chart.yaml          <- Chart metadata (name, version, description)
+# ├── values.yaml          <- Default values (overridable per environment)
+# ├── charts/              <- Sub-charts (dependencies like mysql, redis)
+# ├── templates/           <- K8s YAML templates with {{ }} placeholders
+# │   ├── deployment.yaml
+# │   ├── service.yaml
+# │   ├── configmap.yaml
+# │   ├── hpa.yaml, pvc.yaml
+# │   ├── ingress.yaml
+# │   ├── _helpers.tpl     <- Reusable template functions
+# │   └── NOTES.txt        <- Printed after helm install
+# └── .helmignore         <- Files to exclude (like .gitignore)
+
+# configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webapp-config
+  namespace: aarvitex
+data:
+  APP_ENV: "production"
+  APP_NAME: "Aarvitex WebApp"
+  LOG_LEVEL: "INFO"
+  TOMCAT_PORT: "8080"
+
+
+#deployment file
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deployment
+  namespace: aarvitex
+  labels:
+    app: aarvitex-webapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aarvitex-webapp
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Add 1 new pod before removing old
+      maxUnavailable: 0  # Never have 0 pods running during update
+  template:
+    metadata:
+      labels:
+        app: aarvitex-webapp
+    spec:
+      containers:
+      - name: webapp
+        image: 457451527476.dkr.ecr.us-east-1.amazonaws.com/aarvitex-webapp:v1
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: webapp-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /WebApp
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /WebApp
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - name: tomcat-logs
+          mountPath: /usr/local/tomcat/logs
+      volumes:
+      - name: tomcat-logs
+        persistentVolumeClaim:
+          claimName: webapp-logs-pvc
+        
+
+#Service.yaml
+
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service
+  namespace: aarvitex
+  labels:
+    app: aarvitex-webapp
+spec:
+  type: LoadBalancer     # AWS creates an ELB automatically
+  selector:
+    app: aarvitex-webapp  # Routes to all Pods with this label
+  ports:
+  - protocol: TCP
+    port: 80              # External port (what users hit)
+    targetPort: 8080      # Container port (where Tomcat listens)
+
+
+# hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webapp-hpa
+  namespace: aarvitex
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webapp-deployment
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+#PVC.yaml
+# pvc.yaml - Request 5GB of EBS storage on EKS
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: webapp-logs-pvc
+  namespace: aarvitex
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: gp2   # AWS EBS gp2 on EKS
+  resources:
+    requests:
+      storage: 5Gi
+
+
+# Install AWS Load Balancer Controller (required for Ingress on EKS)
+# (Simplified - full setup at docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html)
+
+# ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-ingress
+  namespace: aarvitex
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  rules:
+  - host: aarvitex.yourdomain.com
+    http:
+      paths:
+      - path: /WebApp
+        pathType: Prefix
+        backend:
+          service:
+            name: webapp-service
+            port:
+              number: 80
