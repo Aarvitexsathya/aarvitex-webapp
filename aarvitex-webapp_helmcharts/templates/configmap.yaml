@@ -1,0 +1,10 @@
+# templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Values.namespace }}
+data:
+  APP_ENV: {{ .Values.app.env | quote }}
+  APP_NAME: {{ .Values.app.name | quote }}
+  LOG_LEVEL: {{ .Values.app.logLevel | quote }}

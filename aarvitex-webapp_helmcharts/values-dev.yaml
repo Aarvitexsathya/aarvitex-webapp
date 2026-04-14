@@ -1,0 +1,25 @@
+# values-dev.yaml - overrides for DEVELOPMENT environment
+replicaCount: 1         # Dev only needs 1 replica (save cost)
+
+image:
+  tag: "latest"          # Dev always runs latest build
+
+service:
+  type: NodePort         # No LoadBalancer needed in dev (cheaper)
+
+app:
+  env: "development"
+  logLevel: "DEBUG"      # Verbose logs in dev
+
+resources:
+  requests:
+    memory: "128Mi"      # Lower resources in dev
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "250m"
+
+autoscaling:
+  enabled: false         # No autoscaling in dev
+
+namespace: aarvitex-dev

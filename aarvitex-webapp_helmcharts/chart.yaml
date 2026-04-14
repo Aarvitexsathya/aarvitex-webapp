@@ -1,0 +1,34 @@
+# aarvitex-webapp/
+# ├── Chart.yaml - Name, version, description(Like a pom.xml)
+# ├── charts - folder for dependencie tools(e.g. mysql, redis charts)
+# ├── templates
+# │   ├── NOTES.txt
+# │   ├── _helpers.tpl
+# │   ├── deployment.yaml
+# │   ├── hpa.yaml
+# │   ├── httproute.yaml
+# │   ├── ingress.yaml
+# │   ├── service.yaml
+# │   ├── serviceaccount.yaml
+# │   └── tests
+# │       └── test-connection.yaml
+# └── values.yaml - Override default values per environment
+
+# Chart.yaml
+apiVersion: v2          # Helm 3 uses v2
+name: aarvitex-webapp   # Chart name (used in helm install commands)
+description: Aarvitex WebApp - Tomcat Java application on Kubernetes
+type: application       # application (runnable) or library (reusable templates)
+version: 1.0.0          # Chart version - increment when chart itself changes
+appVersion: "1.0"       # App version - the Docker image tag being deployed
+
+# Optional but good practice:
+keywords:
+  - java
+  - tomcat
+  - webapp
+maintainers:
+  - name: Sathya
+    email: sathya@aarvitex.com
+
+

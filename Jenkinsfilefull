@@ -1,0 +1,238 @@
+// ============================================================
+// AARVITEX.COM — Complete DevOps Pipeline — 11 Stages
+// Git → Maven → SonarQube → Nexus → Tomcat → Docker → ECR
+// → Helm Deploy → Observability Check → Helm History → Email
+// ============================================================
+
+pipeline {
+    agent any
+
+    environment {
+        SERVER1_IP     = '<Server1-Private-IP>'
+        SONAR_URL      = "http://${SERVER1_IP}:9000"
+        NEXUS_URL      = "http://${SERVER1_IP}:8081"
+        TOMCAT_URL     = "http://${SERVER1_IP}:8080"
+        APP_NAME       = 'aarvitex-webapp'
+        ARTIFACT_ID    = 'aarvitex-webapp'
+        VERSION        = '1.0-SNAPSHOT'
+        NEXUS_REPO     = 'maven-snapshots'
+        AWS_REGION     = 'ap-south-1'
+        ECR_REGISTRY   = '<ACCOUNT-ID>.dkr.ecr.ap-south-1.amazonaws.com'
+        ECR_REPO       = 'aarvitex-webapp'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        FULL_IMAGE     = "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
+        HELM_RELEASE   = 'webapp-prod'
+        HELM_CHART     = './aarvitex-webapp'
+        HELM_VALUES    = 'aarvitex-webapp/values-prod.yaml'
+        K8S_NAMESPACE  = 'aarvitex'
+    }
+
+    tools { maven 'Maven3.9.9' }
+
+    stages {
+
+        stage('1 - Git Checkout') {
+            steps {
+                git branch: 'master',
+                    credentialsId: 'github-creds',
+                    url: 'https://github.com/Aarvitexsathya/webapp.git'
+            }
+        }
+
+        stage('2 - Maven Build') {
+            steps {
+                sh 'mvn clean package -DskipTests=false'
+                archiveArtifacts artifacts: 'target/*.war', fingerprint: true
+            }
+        }
+
+        stage('3 - SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        mvn sonar:sonar \\
+                            -Dsonar.projectKey=${APP_NAME} \\
+                            -Dsonar.projectName='Aarvitex WebApp' \\
+                            -Dsonar.host.url=${SONAR_URL}
+                    """
+                }
+            }
+        }
+
+        stage('4 - Upload to Nexus') {
+            steps {
+                nexusArtifactUploader(
+                    nexusVersion: 'nexus3',
+                    protocol: 'http',
+                    nexusUrl: "${SERVER1_IP}:8081",
+                    groupId: 'com.aarvitex',
+                    version: "${VERSION}",
+                    repository: "${NEXUS_REPO}",
+                    credentialsId: 'nexus-creds',
+                    artifacts: [[
+                        artifactId: "${ARTIFACT_ID}",
+                        classifier: '',
+                        file: "target/${ARTIFACT_ID}-${VERSION}.war",
+                        type: 'war'
+                    ]]
+                )
+            }
+        }
+
+        stage('5 - Deploy to Tomcat') {
+            steps {
+                deploy adapters: [tomcat9(
+                    credentialsId: 'tomcat-creds',
+                    path: '',
+                    url: "${TOMCAT_URL}"
+                )],
+                contextPath: '/WebApp',
+                war: 'target/*.war'
+            }
+        }
+
+        stage('6 - Docker Build') {
+            steps {
+                sh "docker build -t ${FULL_IMAGE} ."
+                sh "docker tag ${FULL_IMAGE} ${ECR_REGISTRY}/${ECR_REPO}:latest"
+            }
+        }
+
+        stage('7 - Push to ECR') {
+            steps {
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \\
+                    docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                """
+                sh "docker push ${FULL_IMAGE}"
+                sh "docker push ${ECR_REGISTRY}/${ECR_REPO}:latest"
+            }
+            post {
+                always {
+                    sh "docker rmi ${FULL_IMAGE} || true"
+                    sh "docker rmi ${ECR_REGISTRY}/${ECR_REPO}:latest || true"
+                }
+            }
+        }
+
+        stage('8 - Helm Deploy to Kubernetes') {
+            steps {
+                sh """
+                    # Create namespace if it doesn't exist
+                    kubectl create namespace ${K8S_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+                    # Deploy / Upgrade using Helm
+                    # --install  : install if release doesn't exist, upgrade if it does
+                    # --atomic   : auto-rollback ALL K8s resources if deploy fails
+                    # --timeout  : max wait time for rollout to complete
+                    helm upgrade --install ${HELM_RELEASE} ${HELM_CHART} \\
+                        -f ${HELM_VALUES} \\
+                        --set image.repository=${ECR_REGISTRY}/${ECR_REPO} \\
+                        --set image.tag=${IMAGE_TAG} \\
+                        --namespace ${K8S_NAMESPACE} \\
+                        --atomic \\
+                        --timeout 5m0s
+
+                    echo '--- Pods after Helm deploy ---'
+                    kubectl get pods -n ${K8S_NAMESPACE}
+
+                    echo '--- Service / Load Balancer URL ---'
+                    kubectl get svc -n ${K8S_NAMESPACE}
+                """
+            }
+        }
+
+        stage('9 - Observability Check') {
+            steps {
+                sh """
+                    echo '============================================'
+                    echo 'POST-DEPLOY OBSERVABILITY CHECK'
+                    echo '============================================'
+
+                    echo '--- Webapp Pod Status ---'
+                    kubectl get pods -n ${K8S_NAMESPACE} -o wide
+
+                    echo '--- Pod Restart Counts ---'
+                    kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print $1, $4}'
+
+                    echo '--- Monitoring Stack Health ---'
+                    kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
+
+                    RUNNING=\$(kubectl get pods -n ${K8S_NAMESPACE} --no-headers | grep 'Running' | wc -l)
+                    echo \"Running pods: \${RUNNING} / 3\"
+
+                    if [ \"\$RUNNING\" -lt \"3\" ]; then
+                        echo 'WARNING: Not all pods are running. Check Grafana dashboard.'
+                        kubectl describe pods -n ${K8S_NAMESPACE} | grep -A5 Events
+                    else
+                        echo 'All 3 pods Running. Check Grafana for live metrics.'
+                    fi
+                """
+            }
+        }
+
+        stage('10 - Helm History') {
+            steps {
+                sh """
+                    echo '--- All Helm Releases ---'
+                    helm list -A
+                    echo '--- Release History ---'
+                    helm history ${HELM_RELEASE} -n ${K8S_NAMESPACE}
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                def k8sUrl = sh(
+                    script: "kubectl get svc ${HELM_RELEASE}-service -n ${K8S_NAMESPACE} " +
+                            "-o jsonpath='{.status.loadBalancer.ingress[0].hostname}' " +
+                            "2>/dev/null || echo 'Provisioning...'",
+                    returnStdout: true
+                ).trim()
+                def grafanaUrl = sh(
+                    script: "kubectl get svc monitoring-grafana -n monitoring " +
+                            "-o jsonpath='{.status.loadBalancer.ingress[0].hostname}' " +
+                            "2>/dev/null || echo 'use port-forward'",
+                    returnStdout: true
+                ).trim()
+                emailext(
+                    subject: "SUCCESS: ${APP_NAME} Build #${BUILD_NUMBER} Deployed",
+                    body: """Pipeline completed successfully!
+
+Build Number  : #${BUILD_NUMBER}
+Docker Image  : ${FULL_IMAGE}
+Helm Release  : ${HELM_RELEASE}
+
+Application URLs:
+  Tomcat (WAR)     : ${TOMCAT_URL}/WebApp
+  Kubernetes (EKS) : http://${k8sUrl}/WebApp
+  SonarQube        : ${SONAR_URL}/dashboard?id=${APP_NAME}
+  Nexus            : ${NEXUS_URL}
+
+Observability (Grafana):
+  URL   : http://${grafanaUrl}
+  Login : admin / aarvitex123
+  Dashboard : Kubernetes / Compute Resources / Namespace (aarvitex)
+
+Rollback Command (if needed):
+  helm rollback ${HELM_RELEASE} -n ${K8S_NAMESPACE}""",
+                    to: 'sathya@aarvitex.com'
+                )
+            }
+        }
+        failure {
+            // --atomic already auto-rolled back K8s on Stage 8 failure
+            sh "helm history ${HELM_RELEASE} -n ${K8S_NAMESPACE} || true"
+            emailext(
+                subject: "FAILED: ${APP_NAME} Build #${BUILD_NUMBER}",
+                body: "Pipeline FAILED. Helm --atomic flag auto-rolled back Kubernetes.\n" +
+                      "Console: ${BUILD_URL}console\n" +
+                      "Manual rollback: helm rollback ${HELM_RELEASE} -n ${K8S_NAMESPACE}",
+                to: 'sathya@aarvitex.com'
+            )
+        }
+    }
+}

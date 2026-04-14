@@ -1,0 +1,46 @@
+# values.yaml - DEFAULT values for the aarvitex-webapp chart
+
+# ── Image Configuration ──────────────────────────────────────────
+image:
+  repository: <ACCOUNT-ID>.dkr.ecr.ap-south-1.amazonaws.com/aarvitex-webapp
+  tag: "1.0"
+  pullPolicy: IfNotPresent   # Pull only if not already on node
+
+# ── Replica Configuration ────────────────────────────────────────
+replicaCount: 2
+
+# ── Service Configuration ────────────────────────────────────────
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+
+# ── Application Configuration ────────────────────────────────────
+app:
+  env: "production"
+  name: "Aarvitex WebApp"
+  logLevel: "INFO"
+
+# ── Resource Limits ──────────────────────────────────────────────
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# ── Autoscaling ──────────────────────────────────────────────────
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# ── Ingress ──────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  host: ""
+
+# ── Namespace ────────────────────────────────────────────────────
+namespace: aarvitex
