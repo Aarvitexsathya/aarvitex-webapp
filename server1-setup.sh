@@ -61,15 +61,15 @@ echo ">>> Build successful: $(ls -lh target/AarvitexWebApp.war)"
 
 # ── Step 5: Install Tomcat 9.0.115 (Port 8080) ────────────────
 cd /opt
-wget -q https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.115/bin/apache-tomcat-9.0.115.tar.gz
-tar -xzf apache-tomcat-9.0.115.tar.gz
-rm -f apache-tomcat-9.0.115.tar.gz
+wget -q https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.117/bin/apache-tomcat-9.0.117.tar.gz
+tar -xzf apache-tomcat-9.0.117.tar.gz
+rm -f apache-tomcat-9.0.117.tar.gz
 
 # Make scripts executable
-chmod u+x /opt/apache-tomcat-9.0.115/bin/*.sh
+chmod u+x /opt/apache-tomcat-9.0.117/bin/*.sh
 
 # Configure Manager Access (for Jenkins deploy later)
-cat > /opt/apache-tomcat-9.0.115/conf/tomcat-users.xml << 'TCUSERS'
+cat > /opt/apache-tomcat-9.0.117/conf/tomcat-users.xml << 'TCUSERS'
 <?xml version="1.0" encoding="UTF-8"?>
 <tomcat-users xmlns="http://tomcat.apache.org/xml"
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -84,7 +84,7 @@ cat > /opt/apache-tomcat-9.0.115/conf/tomcat-users.xml << 'TCUSERS'
 TCUSERS
 
 # Allow Remote Manager Access (so Jenkins on Server 2 can deploy)
-cat > /opt/apache-tomcat-9.0.115/webapps/manager/META-INF/context.xml << 'CTXEOF'
+cat > /opt/apache-tomcat-9.0.117/webapps/manager/META-INF/context.xml << 'CTXEOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <Context antiResourceLocking="false" privileged="true">
   <!-- RemoteAddrValve removed to allow Jenkins remote deploy -->
@@ -92,17 +92,17 @@ cat > /opt/apache-tomcat-9.0.115/webapps/manager/META-INF/context.xml << 'CTXEOF
 CTXEOF
 
 # Also fix host-manager context
-cat > /opt/apache-tomcat-9.0.115/webapps/host-manager/META-INF/context.xml << 'CTXEOF2'
+cat > /opt/apache-tomcat-9.0.117/webapps/host-manager/META-INF/context.xml << 'CTXEOF2'
 <?xml version="1.0" encoding="UTF-8"?>
 <Context antiResourceLocking="false" privileged="true">
 </Context>
 CTXEOF2
 
 # Start Tomcat
-/opt/apache-tomcat-9.0.115/bin/startup.sh
+/opt/apache-tomcat-9.0.117/bin/startup.sh
 
 # Deploy WAR
-cp /opt/aarvitex-webapp/target/AarvitexWebApp.war /opt/apache-tomcat-9.0.115/webapps/
+cp /opt/aarvitex-webapp/target/AarvitexWebApp.war /opt/apache-tomcat-9.0.117/webapps/
 
 echo '>>> Tomcat installed — port 8080'
 
