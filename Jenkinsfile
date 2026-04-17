@@ -143,32 +143,32 @@ pipeline {
         }
 
         stage('9 - Observability Check') {
-            // steps {
-            //     sh """
-            //         echo '============================================'
-            //         echo 'POST-DEPLOY OBSERVABILITY CHECK'
-            //         echo '============================================'
+            steps {
+                sh """
+                    echo '============================================'
+                    echo 'POST-DEPLOY OBSERVABILITY CHECK'
+                    echo '============================================'
 
-            //         echo '--- Webapp Pod Status ---'
-            //         kubectl get pods -n ${K8S_NAMESPACE} -o wide
+                    echo '--- Webapp Pod Status ---'
+                    kubectl get pods -n ${K8S_NAMESPACE} -o wide
 
-            //         echo '--- Pod Restart Counts ---'
-            //         kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print $1, $4}'
+                    echo '--- Pod Restart Counts ---'
+                    kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print $1, $4}'
 
-            //         echo '--- Monitoring Stack Health ---'
-            //         kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
+                    echo '--- Monitoring Stack Health ---'
+                    kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
 
-            //         RUNNING=\$(kubectl get pods -n ${K8S_NAMESPACE} --no-headers | grep 'Running' | wc -l)
-            //         echo \"Running pods: \${RUNNING} / 3\"
+                    RUNNING=\$(kubectl get pods -n ${K8S_NAMESPACE} --no-headers | grep 'Running' | wc -l)
+                    echo \"Running pods: \${RUNNING} / 3\"
 
-            //         if [ \"\$RUNNING\" -lt \"3\" ]; then
-            //             echo 'WARNING: Not all pods are running. Check Grafana dashboard.'
-            //             kubectl describe pods -n ${K8S_NAMESPACE} | grep -A5 Events
-            //         else
-            //             echo 'All 3 pods Running. Check Grafana for live metrics.'
-            //         fi
-            //     """
-            // }
+                    if [ \"\$RUNNING\" -lt \"3\" ]; then
+                        echo 'WARNING: Not all pods are running. Check Grafana dashboard.'
+                        kubectl describe pods -n ${K8S_NAMESPACE} | grep -A5 Events
+                    else
+                        echo 'All 3 pods Running. Check Grafana for live metrics.'
+                    fi
+                """
+            }
         }
 
         stage('10 - Helm History') {
