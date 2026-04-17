@@ -1,0 +1,22 @@
+# aarvitex-webapp/values.yaml
+image:
+  repository: 457451527476.dkr.ecr.us-east-1.amazonaws.com/aarvitex-webapp
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+namespace: aarvitex
