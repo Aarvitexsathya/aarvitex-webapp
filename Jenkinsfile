@@ -142,97 +142,97 @@ pipeline {
             }
         }
 
-//         stage('9 - Observability Check') {
-//             steps {
-//                 sh """
-//                     echo '============================================'
-//                     echo 'POST-DEPLOY OBSERVABILITY CHECK'
-//                     echo '============================================'
+        stage('9 - Observability Check') {
+            // steps {
+            //     sh """
+            //         echo '============================================'
+            //         echo 'POST-DEPLOY OBSERVABILITY CHECK'
+            //         echo '============================================'
 
-//                     echo '--- Webapp Pod Status ---'
-//                     kubectl get pods -n ${K8S_NAMESPACE} -o wide
+            //         echo '--- Webapp Pod Status ---'
+            //         kubectl get pods -n ${K8S_NAMESPACE} -o wide
 
-//                     echo '--- Pod Restart Counts ---'
-//                     kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print $1, $4}'
+            //         echo '--- Pod Restart Counts ---'
+            //         kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print $1, $4}'
 
-//                     echo '--- Monitoring Stack Health ---'
-//                     kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
+            //         echo '--- Monitoring Stack Health ---'
+            //         kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
 
-//                     RUNNING=\$(kubectl get pods -n ${K8S_NAMESPACE} --no-headers | grep 'Running' | wc -l)
-//                     echo \"Running pods: \${RUNNING} / 3\"
+            //         RUNNING=\$(kubectl get pods -n ${K8S_NAMESPACE} --no-headers | grep 'Running' | wc -l)
+            //         echo \"Running pods: \${RUNNING} / 3\"
 
-//                     if [ \"\$RUNNING\" -lt \"3\" ]; then
-//                         echo 'WARNING: Not all pods are running. Check Grafana dashboard.'
-//                         kubectl describe pods -n ${K8S_NAMESPACE} | grep -A5 Events
-//                     else
-//                         echo 'All 3 pods Running. Check Grafana for live metrics.'
-//                     fi
-//                 """
-//             }
-//         }
+            //         if [ \"\$RUNNING\" -lt \"3\" ]; then
+            //             echo 'WARNING: Not all pods are running. Check Grafana dashboard.'
+            //             kubectl describe pods -n ${K8S_NAMESPACE} | grep -A5 Events
+            //         else
+            //             echo 'All 3 pods Running. Check Grafana for live metrics.'
+            //         fi
+            //     """
+            // }
+        }
 
-//         stage('10 - Helm History') {
-//             steps {
-//                 sh """
-//                     echo '--- All Helm Releases ---'
-//                     helm list -A
-//                     echo '--- Release History ---'
-//                     helm history ${HELM_RELEASE} -n ${K8S_NAMESPACE}
-//                 """
-//             }
-//         }
-//     }
+        stage('10 - Helm History') {
+            steps {
+                sh """
+                    echo '--- All Helm Releases ---'
+                    helm list -A
+                    echo '--- Release History ---'
+                    helm history ${HELM_RELEASE} -n ${K8S_NAMESPACE}
+                """
+            }
+        }
+    }
 
-//     post {
-//         success {
-//             script {
-//                 def k8sUrl = sh(
-//                     script: "kubectl get svc ${HELM_RELEASE}-service -n ${K8S_NAMESPACE} " +
-//                             "-o jsonpath='{.status.loadBalancer.ingress[0].hostname}' " +
-//                             "2>/dev/null || echo 'Provisioning...'",
-//                     returnStdout: true
-//                 ).trim()
-//                 def grafanaUrl = sh(
-//                     script: "kubectl get svc monitoring-grafana -n monitoring " +
-//                             "-o jsonpath='{.status.loadBalancer.ingress[0].hostname}' " +
-//                             "2>/dev/null || echo 'use port-forward'",
-//                     returnStdout: true
-//                 ).trim()
-//                 emailext(
-//                     subject: "SUCCESS: ${APP_NAME} Build #${BUILD_NUMBER} Deployed",
-//                     body: """Pipeline completed successfully!
+    post {
+        success {
+            script {
+                def k8sUrl = sh(
+                    script: "kubectl get svc ${HELM_RELEASE}-service -n ${K8S_NAMESPACE} " +
+                            "-o jsonpath='{.status.loadBalancer.ingress[0].hostname}' " +
+                            "2>/dev/null || echo 'Provisioning...'",
+                    returnStdout: true
+                ).trim()
+                def grafanaUrl = sh(
+                    script: "kubectl get svc monitoring-grafana -n monitoring " +
+                            "-o jsonpath='{.status.loadBalancer.ingress[0].hostname}' " +
+                            "2>/dev/null || echo 'use port-forward'",
+                    returnStdout: true
+                ).trim()
+                emailext(
+                    subject: "SUCCESS: ${APP_NAME} Build #${BUILD_NUMBER} Deployed",
+                    body: """Pipeline completed successfully!
 
-// Build Number  : #${BUILD_NUMBER}
-// Docker Image  : ${FULL_IMAGE}
-// Helm Release  : ${HELM_RELEASE}
+Build Number  : #${BUILD_NUMBER}
+Docker Image  : ${FULL_IMAGE}
+Helm Release  : ${HELM_RELEASE}
 
-// Application URLs:
-//   Tomcat (WAR)     : ${TOMCAT_URL}/WebApp
-//   Kubernetes (EKS) : http://${k8sUrl}/WebApp
-//   SonarQube        : ${SONAR_URL}/dashboard?id=${APP_NAME}
-//   Nexus            : ${NEXUS_URL}
+Application URLs:
+  Tomcat (WAR)     : ${TOMCAT_URL}/WebApp
+  Kubernetes (EKS) : http://${k8sUrl}/WebApp
+  SonarQube        : ${SONAR_URL}/dashboard?id=${APP_NAME}
+  Nexus            : ${NEXUS_URL}
 
-// Observability (Grafana):
-//   URL   : http://${grafanaUrl}
-//   Login : admin / aarvitex123
-//   Dashboard : Kubernetes / Compute Resources / Namespace (aarvitex)
+Observability (Grafana):
+  URL   : http://${grafanaUrl}
+  Login : admin / aarvitex123
+  Dashboard : Kubernetes / Compute Resources / Namespace (aarvitex)
 
-// Rollback Command (if needed):
-//   helm rollback ${HELM_RELEASE} -n ${K8S_NAMESPACE}""",
-//                     to: 'sathya@aarvitex.com'
-//                 )
-//             }
-//         }
-//         failure {
-//             // --atomic already auto-rolled back K8s on Stage 8 failure
-//             sh "helm history ${HELM_RELEASE} -n ${K8S_NAMESPACE} || true"
-//             emailext(
-//                 subject: "FAILED: ${APP_NAME} Build #${BUILD_NUMBER}",
-//                 body: "Pipeline FAILED. Helm --atomic flag auto-rolled back Kubernetes.\n" +
-//                       "Console: ${BUILD_URL}console\n" +
-//                       "Manual rollback: helm rollback ${HELM_RELEASE} -n ${K8S_NAMESPACE}",
-//                 to: 'awsanddevops@gmail.com'
-//             )
-//         }
-//     }
-// }
+Rollback Command (if needed):
+  helm rollback ${HELM_RELEASE} -n ${K8S_NAMESPACE}""",
+                    to: 'sathya@aarvitex.com'
+                )
+            }
+        }
+        failure {
+            // --atomic already auto-rolled back K8s on Stage 8 failure
+            sh "helm history ${HELM_RELEASE} -n ${K8S_NAMESPACE} || true"
+            emailext(
+                subject: "FAILED: ${APP_NAME} Build #${BUILD_NUMBER}",
+                body: "Pipeline FAILED. Helm --atomic flag auto-rolled back Kubernetes.\n" +
+                      "Console: ${BUILD_URL}console\n" +
+                      "Manual rollback: helm rollback ${HELM_RELEASE} -n ${K8S_NAMESPACE}",
+                to: 'awsanddevops@gmail.com'
+            )
+        }
+    }
+}
