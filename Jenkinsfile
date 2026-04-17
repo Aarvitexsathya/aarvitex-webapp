@@ -17,7 +17,7 @@ pipeline {
         VERSION        = '1.0-SNAPSHOT'
         NEXUS_REPO     = 'maven-snapshots'
         AWS_REGION     = 'us-east-1'
-        ECR_REGISTRY   = '457451527476.dkr.ecr.us-east-1.amazonaws.com/aarvitex-webapp'
+        ECR_REGISTRY   = '457451527476.dkr.ecr.us-east-1.amazonaws.com'
         ECR_REPO       = 'aarvitex-webapp'
         IMAGE_TAG      = "${BUILD_NUMBER}"
         FULL_IMAGE     = "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
