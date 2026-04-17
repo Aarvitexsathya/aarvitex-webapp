@@ -153,7 +153,7 @@ pipeline {
                     kubectl get pods -n ${K8S_NAMESPACE} -o wide
 
                     echo '--- Pod Restart Counts ---'
-                    kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print $1, $4}'
+                    kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print \$1, \$4}'
 
                     echo '--- Monitoring Stack Health ---'
                     kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
