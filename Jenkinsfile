@@ -72,7 +72,7 @@ pipeline {
                     artifacts: [[
                         artifactId: "${ARTIFACT_ID}",
                         classifier: '',
-                        file: "target/${ARTIFACT_ID}-${VERSION}.war",
+                        file: "target/AarvitexWebApp.war",
                         type: 'war'
                     ]]
                 )
