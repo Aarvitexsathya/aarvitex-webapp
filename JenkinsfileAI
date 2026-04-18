@@ -159,8 +159,8 @@ pipeline {
         stage('11 - AI Release Notes') {
             steps {
                 echo '=== Generating AI Release Notes via Amazon Bedrock ==='
-                sh 'chmod +x scripts/ai-release-notes.sh'
-                sh './scripts/ai-release-notes.sh'
+                sh 'chmod +x scripts/ai-release-note.sh'
+                sh './scripts/ai-release-note.sh'
                 archiveArtifacts artifacts: 'RELEASE_NOTES.md', allowEmptyArchive: true
             }
         }        
