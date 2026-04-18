@@ -156,14 +156,14 @@ pipeline {
                 """
             }
         }
-        stage('11 - AI Release Notes') {
-            steps {
-                echo '=== Generating AI Release Notes via Amazon Bedrock ==='
-                sh 'chmod +x scripts/ai-release-note.sh'
-                sh './scripts/ai-release-note.sh'
-                archiveArtifacts artifacts: 'RELEASE_NOTES.md', allowEmptyArchive: true
-            }
-        }        
+        // stage('11 - AI Release Notes') {
+        //     steps {
+        //         echo '=== Generating AI Release Notes via Amazon Bedrock ==='
+        //         sh 'chmod +x scripts/ai-release-note.sh'
+        //         sh './scripts/ai-release-note.sh'
+        //         archiveArtifacts artifacts: 'RELEASE_NOTES.md', allowEmptyArchive: true
+        //     }
+        // }        
 
         stage('12 - Observability Check') {
             steps {
