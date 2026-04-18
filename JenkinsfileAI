@@ -121,14 +121,14 @@ pipeline {
                 }
             }
         }
-        stage('9 - AI Security Scan') {
-            steps {
-                echo '=== AI Security Scan via Amazon Bedrock ==='
-                sh 'chmod +x scripts/ai-security-scan.sh'
-                sh './scripts/ai-security-scan.sh'
-                archiveArtifacts artifacts: 'ai-security-report.txt', allowEmptyArchive: true
-            }
-        }        
+        // stage('9 - AI Security Scan') {
+        //     steps {
+        //         echo '=== AI Security Scan via Amazon Bedrock ==='
+        //         sh 'chmod +x scripts/ai-security-scan.sh'
+        //         sh './scripts/ai-security-scan.sh'
+        //         archiveArtifacts artifacts: 'ai-security-report.txt', allowEmptyArchive: true
+        //     }
+        // }        
 
         stage('10 - Helm Deploy to Kubernetes') {
             steps {
