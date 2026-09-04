@@ -8,7 +8,7 @@ pipeline {
     agent any
 
     environment {
-        SERVER1_IP     = '172.31.34.133'
+        SERVER1_IP     = '172.31.43.225'
         SONAR_URL      = "http://${SERVER1_IP}:9000"
         NEXUS_URL      = "http://${SERVER1_IP}:8081"
         TOMCAT_URL     = "http://${SERVER1_IP}:8080"
@@ -17,7 +17,7 @@ pipeline {
         VERSION        = '1.0-SNAPSHOT'
         NEXUS_REPO     = 'maven-snapshots'
         AWS_REGION     = 'us-east-1'
-        ECR_REGISTRY   = '457451527476.dkr.ecr.us-east-1.amazonaws.com'
+        ECR_REGISTRY   = '715621342028.dkr.ecr.us-east-1.amazonaws.com'
         ECR_REPO       = 'aarvitex-webapp'
         IMAGE_TAG      = "${BUILD_NUMBER}"
         FULL_IMAGE     = "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
@@ -27,7 +27,7 @@ pipeline {
         K8S_NAMESPACE  = 'aarvitex'
     }
 
-    tools { maven 'Maven3.9.9' }
+    tools { maven 'Maven3.9.16' }
 
     stages {
 
@@ -142,34 +142,34 @@ pipeline {
             }
         }
 
-        stage('9 - Observability Check') {
-            steps {
-                sh """
-                    echo '============================================'
-                    echo 'POST-DEPLOY OBSERVABILITY CHECK'
-                    echo '============================================'
+        // stage('9 - Observability Check') {
+        //     steps {
+        //         sh """
+        //             echo '============================================'
+        //             echo 'POST-DEPLOY OBSERVABILITY CHECK'
+        //             echo '============================================'
 
-                    echo '--- Webapp Pod Status ---'
-                    kubectl get pods -n ${K8S_NAMESPACE} -o wide
+        //             echo '--- Webapp Pod Status ---'
+        //             kubectl get pods -n ${K8S_NAMESPACE} -o wide
 
-                    echo '--- Pod Restart Counts ---'
-                    kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print \$1, \$4}'
+        //             echo '--- Pod Restart Counts ---'
+        //             kubectl get pods -n ${K8S_NAMESPACE} --no-headers | awk '{print \$1, \$4}'
 
-                    echo '--- Monitoring Stack Health ---'
-                    kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
+        //             echo '--- Monitoring Stack Health ---'
+        //             kubectl get pods -n monitoring | grep -E 'prometheus|grafana|alertmanager'
 
-                    RUNNING=\$(kubectl get pods -n ${K8S_NAMESPACE} --no-headers | grep 'Running' | wc -l)
-                    echo \"Running pods: \${RUNNING} / 3\"
+        //             RUNNING=\$(kubectl get pods -n ${K8S_NAMESPACE} --no-headers | grep 'Running' | wc -l)
+        //             echo \"Running pods: \${RUNNING} / 3\"
 
-                    if [ \"\$RUNNING\" -lt \"3\" ]; then
-                        echo 'WARNING: Not all pods are running. Check Grafana dashboard.'
-                        kubectl describe pods -n ${K8S_NAMESPACE} | grep -A5 Events
-                    else
-                        echo 'All 3 pods Running. Check Grafana for live metrics.'
-                    fi
-                """
-            }
-        }
+        //             if [ \"\$RUNNING\" -lt \"3\" ]; then
+        //                 echo 'WARNING: Not all pods are running. Check Grafana dashboard.'
+        //                 kubectl describe pods -n ${K8S_NAMESPACE} | grep -A5 Events
+        //             else
+        //                 echo 'All 3 pods Running. Check Grafana for live metrics.'
+        //             fi
+        //         """
+        //     }
+        // }
 
         stage('10 - Helm History') {
             steps {
